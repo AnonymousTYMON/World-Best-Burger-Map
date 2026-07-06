@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1c1a17">
+<title>World's 101 Best Burgers — Map</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1c1a17;          /* charcoal griddle */
+    --panel:#26231f;
+    --panel-2:#2f2b26;
+    --cream:#f6efdf;        /* brioche */
+    --gold:#f2b23e;         /* top-10 gold */
+    --tomato:#d94f30;       /* 11–50 */
+    --smoke:#8c8578;
+    --line:#3a352e;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--ink);color:var(--cream);overflow:hidden}
+
+  /* ---------- Header ---------- */
+  header{
+    position:fixed;top:0;left:0;right:0;z-index:1200;
+    display:flex;align-items:center;gap:10px;
+    padding:10px 14px;
+    background:linear-gradient(180deg,rgba(28,26,23,.97),rgba(28,26,23,.9));
+    border-bottom:1px solid var(--line);
+  }
+  .logo{display:flex;flex-direction:column;line-height:1;min-width:max-content}
+  .logo .t1{font-family:'Anton',Impact,sans-serif;font-size:19px;letter-spacing:.5px;color:var(--gold)}
+  .logo .t2{font-size:9px;letter-spacing:2.5px;color:var(--smoke);text-transform:uppercase;margin-top:3px}
+  .searchbox{flex:1;display:flex;align-items:center;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:0 12px;max-width:420px}
+  .searchbox input{flex:1;background:none;border:none;outline:none;color:var(--cream);font:500 14px 'Inter',sans-serif;padding:9px 6px}
+  .searchbox input::placeholder{color:var(--smoke)}
+  .searchbox svg{flex:none;opacity:.6}
+
+  /* ---------- Filter chips ---------- */
+  .chips{
+    position:fixed;top:58px;left:0;right:0;z-index:1150;
+    display:flex;gap:8px;padding:8px 14px;overflow-x:auto;scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;
+  }
+  .chips::-webkit-scrollbar{display:none}
+  .chip{
+    flex:none;padding:7px 14px;border-radius:999px;font:600 12px 'Inter',sans-serif;
+    background:var(--panel);border:1px solid var(--line);color:var(--cream);cursor:pointer;
+    transition:background .15s,color .15s;
+  }
+  .chip.on{background:var(--gold);border-color:var(--gold);color:var(--ink)}
+
+  /* ---------- Map ---------- */
+  #map{position:fixed;inset:0;z-index:1;background:#d8e0e0}
+  .leaflet-container{font-family:'Inter',sans-serif}
+  .leaflet-control-zoom{border:none!important;margin-bottom:24px!important;margin-left:14px!important}
+  .leaflet-control-zoom a{background:var(--panel)!important;color:var(--cream)!important;border:1px solid var(--line)!important}
+
+  /* rank badge markers */
+  .badge{
+    display:flex;align-items:center;justify-content:center;
+    width:34px;height:34px;border-radius:50% 50% 50% 4px;
+    font:700 12px 'Inter',sans-serif;color:var(--ink);
+    border:2px solid var(--ink);
+    box-shadow:0 2px 6px rgba(0,0,0,.5);
+    transform:rotate(-8deg);
+  }
+  .badge.gold{background:var(--gold)}
+  .badge.tomato{background:var(--tomato);color:var(--cream)}
+  .badge.char{background:var(--cream);color:var(--ink)}
+
+  .cluster{
+    display:flex;align-items:center;justify-content:center;
+    width:40px;height:40px;border-radius:50%;
+    background:var(--tomato);color:var(--cream);
+    font:700 13px 'Inter',sans-serif;border:2px solid var(--ink);
+    box-shadow:0 2px 8px rgba(0,0,0,.5);
+  }
+
+  /* popup */
+  .leaflet-popup-content-wrapper{background:var(--panel);color:var(--cream);border-radius:12px;border:1px solid var(--line)}
+  .leaflet-popup-tip{background:var(--panel)}
+  .leaflet-popup-content{margin:14px 16px;min-width:190px}
+  .pp-rank{font-family:'Anton',Impact,sans-serif;font-size:13px;color:var(--gold);letter-spacing:1px}
+  .pp-name{font-family:'Anton',Impact,sans-serif;font-size:19px;letter-spacing:.5px;margin:2px 0 1px}
+  .pp-city{font-size:12px;color:var(--smoke);margin-bottom:10px}
+  .pp-actions{display:flex;gap:8px}
+  .pp-actions a{
+    flex:1;text-align:center;text-decoration:none;padding:8px 6px;border-radius:8px;
+    font:600 12px 'Inter',sans-serif;
+  }
+  .pp-dir{background:var(--gold);color:var(--ink)}
+  .pp-ig{background:var(--panel-2);color:var(--cream);border:1px solid var(--line)}
+  .pp-note{font-size:10px;color:var(--smoke);margin-top:8px}
+
+  /* ---------- Floating buttons ---------- */
+  .fab{
+    position:fixed;z-index:1100;display:flex;align-items:center;gap:8px;
+    background:var(--gold);color:var(--ink);border:none;border-radius:999px;
+    font:700 13px 'Inter',sans-serif;padding:12px 18px;cursor:pointer;
+    box-shadow:0 4px 14px rgba(0,0,0,.5);
+  }
+  #listBtn{bottom:22px;left:50%;transform:translateX(-50%)}
+  #locBtn{bottom:22px;right:16px;width:46px;height:46px;padding:0;justify-content:center;background:var(--panel);color:var(--cream);border:1px solid var(--line)}
+
+  /* ---------- List panel ---------- */
+  #panel{
+    position:fixed;z-index:1300;left:0;right:0;bottom:0;top:auto;height:72%;
+    background:var(--panel);border-top-left-radius:18px;border-top-right-radius:18px;
+    border:1px solid var(--line);display:flex;flex-direction:column;
+    transform:translateY(105%);transition:transform .28s ease;
+  }
+  #panel.open{transform:translateY(0)}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 8px}
+  .panel-head h2{font-family:'Anton',Impact,sans-serif;font-size:16px;letter-spacing:1px}
+  .panel-head .cnt{font-size:12px;color:var(--smoke)}
+  .closex{background:none;border:none;color:var(--smoke);font-size:22px;cursor:pointer;line-height:1}
+  #list{flex:1;overflow-y:auto;padding:0 10px 20px}
+  .row{
+    display:flex;align-items:center;gap:12px;padding:11px 8px;
+    border-bottom:1px solid var(--line);cursor:pointer;border-radius:8px;
+  }
+  .row:hover{background:var(--panel-2)}
+  .row .rk{
+    flex:none;width:38px;height:38px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font:700 13px 'Inter',sans-serif;color:var(--ink);
+  }
+  .rk.gold{background:var(--gold)} .rk.tomato{background:var(--tomato);color:var(--cream)} .rk.char{background:var(--cream)}
+  .row .nm{font:600 14px 'Inter',sans-serif}
+  .row .ct{font-size:12px;color:var(--smoke);margin-top:2px}
+  .empty{padding:30px;text-align:center;color:var(--smoke);font-size:13px}
+
+  /* ---------- Desktop layout ---------- */
+  @media(min-width:900px){
+    #panel{
+      top:0;bottom:0;left:0;right:auto;width:360px;height:100%;
+      border-radius:0;border-right:1px solid var(--line);
+      transform:none;padding-top:74px;z-index:1100;
+    }
+    #panel .closex{display:none}
+    #listBtn{display:none}
+    #map{left:360px}
+    .chips{left:360px;right:0;top:66px}
+    header{padding-left:20px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="t1">BURGER 101</span>
+    <span class="t2">World's Best Burgers · 2026</span>
+  </div>
+  <div class="searchbox">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f6efdf" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+    <input id="q" type="search" placeholder="Search restaurant or city…" autocomplete="off">
+  </div>
+</header>
+
+<div class="chips" id="chips">
+  <button class="chip on" data-f="all">All 101</button>
+  <button class="chip" data-f="top10">Top 10</button>
+  <button class="chip" data-f="top25">Top 25</button>
+  <button class="chip" data-f="Europe">Europe</button>
+  <button class="chip" data-f="Americas">Americas</button>
+  <button class="chip" data-f="Asia">Asia &amp; Middle East</button>
+  <button class="chip" data-f="Oceania">Australia</button>
+  <button class="chip" data-f="Africa">Africa</button>
+</div>
+
+<div id="map"></div>
+
+<button class="fab" id="listBtn">☰ &nbsp;Ranking list</button>
+<button class="fab" id="locBtn" title="Find me">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
+</button>
+
+<div id="panel">
+  <div class="panel-head">
+    <h2>THE RANKING</h2>
+    <span class="cnt" id="cnt"></span>
+    <button class="closex" id="closePanel">×</button>
+  </div>
+  <div id="list"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
+<script>
+// rank, name, city, region, lat, lng, instagram
+const R=[
+[1,"Bleecker","London","Europe",51.5205,-0.0759,"bleeckerburger"],
+[2,"Black Bear Burger","London","Europe",51.5246,-0.0795,"black_bear_burger"],
+[3,"Café Margaret","Double Bay, Sydney","Oceania",-33.8770,151.2430,"cafemargaretdoublebay"],
+[4,"The Diplomat","Hong Kong","Asia",22.2819,114.1556,"thediplomathk"],
+[5,"Gasoline Grill","Copenhagen","Europe",55.6830,12.5860,"gasolinegrill"],
+[6,"Sip & Guzzle","New York","Americas",40.7336,-74.0027,"sipandguzzlenyc"],
+[7,"Hawksmoor St Pancras","London","Europe",51.5300,-0.1258,"hawksmoorrestaurants"],
+[8,"Nowon","New York","Americas",40.7259,-73.9846,"nowon.usa"],
+[9,"Amboy Quality Meats","Los Angeles","Americas",34.0505,-118.2400,"amboy_qualitymeats"],
+[10,"The Grill at the International","Sydney","Oceania",-33.8650,151.2030,"theinternationalsydney"],
+[11,"Burger & Beyond","London","Europe",51.5230,-0.0870,"burgerandbeyond"],
+[12,"Wagyumafia","Tokyo","Asia",35.6595,139.7005,"wagyumafiaburger"],
+[13,"Charrd","Melbourne","Oceania",-37.8136,144.9631,"charrdbk"],
+[14,"Will's","Coogee, Sydney","Oceania",-33.9198,151.2570,"wills_coogee"],
+[15,"Camphor","Los Angeles","Americas",34.0450,-118.2350,"camphorla"],
+[16,"Hubert","Sydney","Oceania",-33.8646,151.2100,"restauranthubert"],
+[17,"Bar Julius","Redfern, Sydney","Oceania",-33.8932,151.2043,"barjulius.redfern"],
+[18,"AG","Stockholm","Europe",59.3360,18.0350,"restaurang_ag"],
+[19,"The Gidley","Sydney","Oceania",-33.8660,151.2075,"thegidley"],
+[20,"Salt Shed","Brighton","Europe",50.8225,-0.1372,"saltshed"],
+[21,"Clam Bar","Sydney","Oceania",-33.8670,151.2110,"clambarsydney"],
+[22,"The Loyalist","Chicago","Americas",41.8963,-87.6553,"theloyalistchicago"],
+[23,"Bunsen Burgers","Dublin","Europe",53.3440,-6.2630,"bunsenburgers"],
+[24,"Bar Chimera","New York","Americas",40.7180,-73.9900,"barchimera"],
+[25,"The Alston","Chicago","Americas",41.8850,-87.6350,"thealston_chicago"],
+[26,"Dumbo","Paris","Europe",48.8680,2.3400,"dumboparis"],
+[27,"Reburger","Florence","Europe",43.7710,11.2550,"reburgerfirenze"],
+[28,"Meat Stop","London","Europe",51.5150,-0.1400,"meatstop_"],
+[29,"Dandelion Burger","Copenhagen","Europe",55.6650,12.5450,"dandelionburger"],
+[30,"Gui's Burger","Ashiya, Japan","Asia",34.7280,135.3030,"meetyourwagyu"],
+[31,"Eat Jabs","Austin","Americas",30.2700,-97.7400,"eatjabs"],
+[32,"Petit Trois","Los Angeles","Americas",34.0838,-118.3290,"petittroisla"],
+[33,"Sold Out Burger","Paris","Europe",48.8720,2.3550,"sold_out_burger_"],
+[34,"Maijard Smashburgers","Antwerp","Europe",51.2194,4.4025,"maijardsmashburgers"],
+[35,"Sailor","New York","Americas",40.6890,-73.9740,"sailor_nyc"],
+[36,"Bunzai","Zurich","Europe",47.3769,8.5417,"bunzai.smash"],
+[37,"Seoul Tiger","Melbourne","Oceania",-37.8080,144.9700,"seoultiger1988"],
+[38,"Fat Rabbit","St. Catharines, Canada","Americas",43.1594,-79.2469,"fatrabbit"],
+[39,"Dai Due","Austin","Americas",30.2640,-97.7220,"daidue"],
+[40,"Specimen Burger","Paris","Europe",48.8600,2.3700,"specimenburger"],
+[41,"Sstash Burger","Mission, TX","Americas",26.2159,-98.3253,"sstashburger"],
+[42,"NADC Burger","Nashville","Americas",36.1580,-86.7760,"nadcburger"],
+[43,"Sunny's","Miami","Americas",25.7900,-80.2100,"sunnysmia"],
+[44,"La Birra Bar","Miami","Americas",25.8330,-80.1830,"labirrabar.usa"],
+[45,"Arkhé","Adelaide","Oceania",-34.9285,138.6007,"arkhe_restaurant"],
+[46,"Fireside","Hong Kong","Asia",22.2830,114.1700,"fireside.hk"],
+[47,"Goldies Bar","Berlin","Europe",52.4930,13.4230,"goldies.bar"],
+[48,"Bon Burger","Amsterdam","Europe",52.3676,4.9041,"bonburgerbar"],
+[49,"Masonry","Bali","Asia",-8.6478,115.1385,"masonry.bali"],
+[50,"Meatsmith","Singapore","Asia",1.2800,103.8470,"meatsmith.sg"],
+[51,"Brash","Cape Town","Africa",-33.9249,18.4241,"brashburger"],
+[52,"Grindhouse Burger","Berlin","Europe",52.5330,13.4130,"grindhouseburger"],
+[53,"Hanbaagaa Suuteeki","London","Europe",51.5110,-0.1230,"hanbaagaasuuteeki"],
+[54,"Heard","London","Europe",51.4900,-0.0700,"heard.burger"],
+[55,"POPL Burger","Copenhagen","Europe",55.6720,12.5930,"poplburger"],
+[56,"El Perro Negro","Glasgow","Europe",55.8642,-4.2518,"elperronegroburgers"],
+[57,"Flaco","Santiago de Compostela","Europe",42.8782,-8.5449,"flaco.scq"],
+[58,"Smash Street Burger Bar","Singapore","Asia",1.3000,103.8550,"smashstreet.sg"],
+[59,"Kitan Hibiki","Osaka","Asia",34.6937,135.5023,"kitan_hibiki"],
+[60,"Clover Grill","Paris","Europe",48.8560,2.3440,"clovergrillparis"],
+[61,"Prime + Proper","Detroit","Americas",42.3320,-83.0490,"primeandproperrestaurants"],
+[62,"Hundred Burgers","Madrid","Europe",40.4200,-3.7000,"hundredburgers_"],
+[63,"Red Hook Tavern","New York","Americas",40.6770,-74.0110,"redhooktavernbk"],
+[64,"Débutant Dining","Wollongong, NSW","Oceania",-34.4278,150.8931,"debutantdining"],
+[65,"One Club Row","London","Europe",51.5240,-0.0710,"oneclubrow"],
+[66,"Miller & Lux","San Francisco","Americas",37.7680,-122.3870,"millerandlux"],
+[67,"Char Fuego y Brasas","Tenerife","Europe",28.2916,-16.6291,"char_fuegoybrasas"],
+[68,"Asador Bastian","Chicago","Americas",41.8920,-87.6300,"asadorbastian"],
+[69,"The Grand Bar & Grill","Helsinki","Europe",60.1699,24.9384,"thegrand_helsinki"],
+[70,"Hermon's","Los Angeles","Americas",34.0620,-118.3080,"hermonsla"],
+[71,"Dreamburger","Nashville","Americas",36.1700,-86.7900,"dreamburgernash"],
+[72,"Peckish Burgers","London","Europe",51.5400,-0.1450,"peckish_burgers"],
+[73,"Funky Chicken Food Truck","Stockholm","Europe",59.3150,18.0750,"funkychickenfoodtruck"],
+[74,"Txula","New York","Americas",40.7220,-73.9870,"txulasteak"],
+[75,"Le Smash Burger","Amsterdam","Europe",52.3600,4.8850,"le_smashburger"],
+[76,"11 Woodfire","Dubai","Asia",25.1930,55.2500,"11woodfire"],
+[77,"Le Rêve Restaurant","Brownsville, TX","Americas",25.9017,-97.4975,"le.reve.restaurant"],
+[78,"Gabos","Madrid","Europe",40.4300,-3.6880,"gabosmadrid"],
+[79,"Zuney","Cape Town","Africa",-33.9100,18.4100,"zuneywagyu"],
+[80,"Gotham Burger Social Club","New York","Americas",40.7150,-73.9840,"gothamburgersocialclub"],
+[81,"CPH Smash","Copenhagen","Europe",55.6900,12.5530,"cphsmash"],
+[82,"Black Cactus BBQ","London","Europe",51.5340,-0.0570,"black.cactus.bbq"],
+[83,"Little Bad Wolf","Chicago","Americas",41.9790,-87.6690,"littlebadwolfchicago"],
+[84,"The Boring Burger","Guildford","Europe",51.2362,-0.5704,"theboringburger"],
+[85,"Boneless","Helsinki","Europe",60.1620,24.9300,"boneless.fi"],
+[86,"Down South Deli","Oslo","Europe",59.9139,10.7522,"downsouthdeli"],
+[87,"Dove","London","Europe",51.5480,-0.0750,"i.feel.dove"],
+[88,"Hamburger America","New York","Americas",40.7270,-74.0030,"hamburger_america"],
+[89,"Grindhouse Braserito","São Paulo","Americas",-23.5505,-46.6333,"grindhouse_braserito"],
+[90,"Dash Burger","Dublin","Europe",53.3420,-6.2500,"dashburger_"],
+[91,"Rekas Burgers","Malmö","Europe",55.6050,13.0038,"rekasburgers"],
+[92,"Jet Set","Providencia, Santiago","Americas",-33.4263,-70.6110,"soyjetset"],
+[93,"Jonas Burger","Dubai","Asia",25.2100,55.2750,"jonasburger.ae"],
+[94,"Franky's","Stockholm","Europe",59.3400,18.0600,"frankysburger"],
+[95,"Goldies Smashburger","Berlin","Europe",52.5100,13.3900,"goldies_smashburger"],
+[96,"Eleven Green","Dubai","Asia",25.1400,55.1850,"elevengreen.uae"],
+[97,"Doug's Burger","Oslo","Europe",59.9200,10.7400,"dougshamburger"],
+[98,"Leytonstone Tavern","London","Europe",51.5680,0.0100,"leytonstonetavern"],
+[99,"Simonette","Culver City, LA","Americas",34.0211,-118.3965,"simonetterestaurant"],
+[100,"Mosh Burgers","Bruges","Europe",51.2093,3.2247,"mosh_burgers"],
+[101,"HiHo Cheeseburger","Santa Monica, LA","Americas",34.0130,-118.4900,"hihocheeseburger"]
+];
+
+const data=R.map(r=>({rank:r[0],name:r[1],city:r[2],region:r[3],lat:r[4],lng:r[5],ig:r[6]}));
+
+// ---------- Map ----------
+const map=L.map('map',{zoomControl:false,worldCopyJump:true}).setView([25,10],2);
+L.control.zoom({position:'bottomleft'}).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
+  attribution:'&copy; OpenStreetMap &copy; CARTO · Ranking © worldbestburgers.com',
+  maxZoom:19
+}).addTo(map);
+
+const tier=r=>r<=10?'gold':r<=50?'tomato':'char';
+
+const cluster=L.markerClusterGroup({
+  showCoverageOnHover:false,
+  maxClusterRadius:44,
+  iconCreateFunction:c=>L.divIcon({html:`<div class="cluster">${c.getChildCount()}</div>`,className:'',iconSize:[40,40]})
+});
+
+function popupHtml(d){
+  const gm=`https://www.google.com/maps/search/${encodeURIComponent(d.name+' '+d.city)}`;
+  return `<div>
+    <div class="pp-rank">NO. ${d.rank}</div>
+    <div class="pp-name">${d.name.toUpperCase()}</div>
+    <div class="pp-city">${d.city}</div>
+    <div class="pp-actions">
+      <a class="pp-dir" href="${gm}" target="_blank" rel="noopener">Directions</a>
+      <a class="pp-ig" href="https://www.instagram.com/${d.ig}/" target="_blank" rel="noopener">Instagram</a>
+    </div>
+    <div class="pp-note">Pin shows the neighbourhood — tap Directions for the exact address.</div>
+  </div>`;
+}
+
+data.forEach(d=>{
+  d.marker=L.marker([d.lat,d.lng],{
+    icon:L.divIcon({html:`<div class="badge ${tier(d.rank)}">${d.rank}</div>`,className:'',iconSize:[34,34],iconAnchor:[17,30]})
+  }).bindPopup(popupHtml(d));
+});
+
+// ---------- Filtering / list ----------
+const listEl=document.getElementById('list'),cntEl=document.getElementById('cnt'),qEl=document.getElementById('q');
+let activeFilter='all';
+
+function visible(){
+  const q=qEl.value.trim().toLowerCase();
+  return data.filter(d=>{
+    if(activeFilter==='top10'&&d.rank>10)return false;
+    if(activeFilter==='top25'&&d.rank>25)return false;
+    if(['Europe','Americas','Asia','Oceania','Africa'].includes(activeFilter)&&d.region!==activeFilter)return false;
+    if(q&&!(d.name.toLowerCase().includes(q)||d.city.toLowerCase().includes(q)))return false;
+    return true;
+  });
+}
+
+function render(){
+  const v=visible();
+  cluster.clearLayers();
+  v.forEach(d=>cluster.addLayer(d.marker));
+  if(!map.hasLayer(cluster))map.addLayer(cluster);
+
+  cntEl.textContent=`${v.length} place${v.length===1?'':'s'}`;
+  listEl.innerHTML=v.length?'':'<div class="empty">No burgers match that search. Try another name or city.</div>';
+  v.forEach(d=>{
+    const row=document.createElement('div');
+    row.className='row';
+    row.innerHTML=`<div class="rk ${tier(d.rank)}">${d.rank}</div>
+      <div><div class="nm">${d.name}</div><div class="ct">${d.city}</div></div>`;
+    row.onclick=()=>{
+      closePanelOnMobile();
+      map.setView([d.lat,d.lng],14,{animate:true});
+      setTimeout(()=>d.marker.openPopup(),350);
+    };
+    listEl.appendChild(row);
+  });
+}
+
+qEl.addEventListener('input',render);
+document.getElementById('chips').addEventListener('click',e=>{
+  const b=e.target.closest('.chip');if(!b)return;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  b.classList.add('on');activeFilter=b.dataset.f;render();
+  const v=visible();
+  if(v.length&&activeFilter!=='all'){
+    map.fitBounds(L.latLngBounds(v.map(d=>[d.lat,d.lng])),{padding:[50,50]});
+  }
+});
+
+// ---------- Panel (mobile bottom sheet / desktop sidebar) ----------
+const panel=document.getElementById('panel');
+const isDesktop=()=>window.matchMedia('(min-width:900px)').matches;
+function closePanelOnMobile(){if(!isDesktop())panel.classList.remove('open')}
+document.getElementById('listBtn').onclick=()=>panel.classList.toggle('open');
+document.getElementById('closePanel').onclick=()=>panel.classList.remove('open');
+function syncPanel(){if(isDesktop())panel.classList.add('open')}
+window.addEventListener('resize',syncPanel);
+
+// ---------- Locate me ----------
+let meMarker=null;
+document.getElementById('locBtn').onclick=()=>{
+  if(!navigator.geolocation){alert('Location is not available in this browser.');return}
+  navigator.geolocation.getCurrentPosition(p=>{
+    const ll=[p.coords.latitude,p.coords.longitude];
+    if(meMarker)meMarker.remove();
+    meMarker=L.circleMarker(ll,{radius:8,color:'#f2b23e',weight:3,fillColor:'#f2b23e',fillOpacity:.4}).addTo(map).bindPopup('You are here');
+    map.setView(ll,11,{animate:true});
+  },()=>alert('Could not get your location. Check that location access is allowed.'));
+};
+
+syncPanel();
+render();
+</script>
+</body>
+</html>
