@@ -86,7 +86,6 @@ To update the ranking each year, edit this array — nothing else needs to chang
 
 - Ranking: [World Best Burgers — Our List](https://www.worldbestburgers.com/our-list)
 - Map data: © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, tiles by [CARTO](https://carto.com/)
-- Inspired by [PetrolSpy](https://petrolspy.com.au/map)
 
 ## 📄 License
 
