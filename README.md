@@ -33,6 +33,11 @@ python3 -m http.server 8000
 
 > **Note:** the "Find me" (geolocation) button requires the page to be served over `https://` or opened via `localhost` in some browsers. Everything else works from a plain `file://` open.
 
+- worlds-best-burgers-map.html - original version for Windows
+- worlds-best-burgers-map (1).html - Another Windows version but included each restaurant's signature burger
+- worlds-best-burgers-map-mobile.html - Similar but with mobile UI
+- worlds-best-burgers-map-mobile.apk - App in Android
+
 ### Install like an app
 
 - **Android (Chrome):** open the page → menu **⋮** → **Add to Home Screen**. It gets its own icon and launches full-screen.
